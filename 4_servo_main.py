@@ -1,7 +1,8 @@
-# Leap program to track hand position using LeapMotionSDK
-# import the libraries where the LeapMotionSDK is
+"""
+This program with control 4 servo motors using Leap inputs
+"""
 import sys
-sys.path.insert(0, "LeapLib/")  #path to leap library
+sys.path.insert(0, "LeapLib/")  # path to Leap library for Python
 
 import Leap, thread, time
 from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
@@ -18,18 +19,17 @@ class SampleListener(Leap.Listener):
     def on_init(self, controller):
 
         # define a connection to USB serial port
-        # declare: a = Arduino(serial_port='port_name')
-        self.a = Arduino(serial_port='COM7')
+        self.a = Arduino(serial_port='COM8')
         
-        # sleep to ensure ample time for computer to make serial connection 
+        # allow time for computer to make serial connection to arduino
         time.sleep(3)
         
-        # Define Pins for Arduino Servos
-        self.PIN2 = 2 # Azimuthal / Base
+        # define PIN for each servo motor
+        self.PIN2 = 2 # Azimuthal/Base
         self.PIN3 = 3 # Altitude 
         self.PIN4 = 4 # Wrist   
         self.PIN5 = 5 # Claw
-        self.previous_angles = [0,0,0,0]
+        self.previous_angles = [0,0,0,0] # cordination matrix
 
         # allow time to make connection
         time.sleep(1)
@@ -50,8 +50,8 @@ class SampleListener(Leap.Listener):
 
     def on_exit(self, controller):
         time.sleep(1)
-        # Reset arduino to default when stop program
-        self.a.servo_write(self.PIN2, 90)   # Az / Base
+        # Reset servo to default position when stop program
+        self.a.servo_write(self.PIN2, 90)   # Az/base
         self.a.servo_write(self.PIN3, 0)    # Altitude
         self.a.servo_write(self.PIN4, 100)  # Wrist
         self.a.servo_write(self.PIN5, 70)   # Claw
@@ -59,18 +59,22 @@ class SampleListener(Leap.Listener):
 
         print("Exited")
 
+    # All movement will be in this function
     def on_frame(self, controller):
 
-        # we only want to get the position of the hand every so often
+        # determine time range for each between each frame obj
         self.newtime = time.time()
-        if self.newtime-self.oldtime > 0.1: # every 10 ms get a frame
+        if self.newtime-self.oldtime > 0.1: # every 10ms get a frame from Leap device
 
         # Get the most recent frame and report some basic information
             frame = controller.frame()
             interaction_box = frame.interaction_box       
 
+            # basic frame information
             print("Frame id: %d, timestamp: %d, hands: %d, fingers: %d, tools: %d, gestures: %d" % (
                   frame.id, frame.timestamp, len(frame.hands), len(frame.fingers), len(frame.tools), len(frame.gestures())))
+
+            dist_norm = 0 # global variable for claw status (open/close)
 
             # Get hands
             for hand in frame.hands:
@@ -86,7 +90,9 @@ class SampleListener(Leap.Listener):
                 print("  %s, id %d, y-position: %s" % (handType, hand.id, int(self.YPOS*85) ))
                 print("  %s, id %d, z-position: %s" % (handType, hand.id, int(self.ZPOS*180) ))
 
-                print('my fingers =', len(hand.fingers))
+                # show how many fingers are being recorded
+                print("my fingers = %d" % (len(hand.fingers)) )
+
                 if len(hand.fingers) >= 2:
                     x1 = hand.fingers[0].tip_position[0]
                     y1 = hand.fingers[0].tip_position[1]
@@ -97,44 +103,45 @@ class SampleListener(Leap.Listener):
                     z2 = hand.fingers[1].tip_position[2]
             
                     # calc 2norm for difference between vector to thumb and pointer finger 
+                    # basic vectors distance calculation formula
                     r = ( (x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2 )**0.5
 
-                    # perform a crude normalization
-                    dist_norm = r/100.
-                    # may need to change the 100 to something else
+                    # perform normalization
+                    dist_norm = r/100
 
-                    print('Finger Tip Distance = ', dist_norm)
+                    # either 0 (close) or 1 (open)
+                    print("Finger Tip Distance = %d" % (dist_norm) ) 
             
             if dist_norm >= 1:
-                dist_norm=1
-                #for finger in hand.fingers:
-                    #print finger,' - ',finger.tip_position
-
+                dist_norm=1 # only need 2 values: 0,1 to indicate close,open relationship
     
-            # determine motors - adjust angle ranges here too
+            # determine range/angle for each motor
+            # FIXME: MAKE MODIFICATION HERE IF NEEDED
             XPOS_servo = abs(145 - self.XPOS * 145) # Base
             YPOS_servo = abs(85 - self.YPOS * 85)   # Altitude
             ZPOS_servo = 35 + 135 * self.ZPOS       # Wrist angle
      
-            # write the value to servo on arduino
+            # write calculated angle values onto arduino
             self.a.servo_write(self.PIN2, int(XPOS_servo)) # Azimuth
             self.a.servo_write(self.PIN3, int(YPOS_servo)) # Altitude
             self.a.servo_write(self.PIN4, int(ZPOS_servo)) # Wrist
 
-            # claw range
-            CLAW_SERVO = abs(90 - dist_norm * 70)
-            print('Claw Angle =', CLAW_SERVO)
+            # claw range (from 10 to 90 degree)
+            # FIXME: MAKE MODIFICATION HERE IF NEEDED
+            CLAW_servo = abs(90 - dist_norm * 70) # change this formula if want different range of claw
+            print("Claw Angle = %d" % (CLAW_servo) )
+            print("---------------------------------------------------------") # line brake for each frame
             
-            self.a.servo_write(self.PIN5, int(CLAW_SERVO))
+            self.a.servo_write(self.PIN5, int(CLAW_servo)) # Claw
 
-            # update the old time
+            # update oldtime
             self.oldtime = self.newtime
 
-            # update previous values
+            # update previous cordinate values
             self.previous_angles[0] = XPOS_servo
             self.previous_angles[1] = YPOS_servo
             self.previous_angles[2] = ZPOS_servo
-            self.previous_angles[3] = CLAW_SERVO
+            self.previous_angles[3] = CLAW_servo
         else:
             pass # keep advancing in time until 1 second is reached
 

@@ -14,41 +14,45 @@ int value_to_write; // Holds the value that we want to write
 int wait_for_transmission = 5; // Delay in ms in order to receive the serial data
 
 // create servo object to control a servo
-Servo SERVO2; 
-Servo SERVO3;
-Servo SERVO4;
+Servo SERVO2; // base or azimuth obj
+Servo SERVO3; // altitude obj
+Servo SERVO4; // wrist obj
+Servo SERVO5; // claw obj
 
 int SERVO2_PIN = 2; // azimuth angle
 int SERVO3_PIN = 3; // altitude angle
 int SERVO4_PIN = 4; // wrist angle
+int SERVO5_PIN = 5; // claw angle
 
 void setup() {
     Serial.begin(9600); // Serial Port at 9600 baud
     Serial.setTimeout(500); // Instead of the default 1000ms, in order
                             // to speed up the Serial.parseInt() 
-    
+
+    // Default postion of all servo motors
     SERVO2.attach(SERVO2_PIN);
-    SERVO2.write(180); // reset to original position
+    SERVO2.write(90); 
 
     SERVO3.attach(SERVO3_PIN);
-    SERVO3.write(90); // reset to original position
-    // servo3 limit 0-85
+    SERVO3.write(0);  // servo3 limit 0-85
 
     SERVO4.attach(SERVO4_PIN);
-    SERVO4.write(90); // reset to original position
+    SERVO4.write(100);
+
+    SERVO5.attach(SERVO5_PIN);
+    SERVO5.write(70); // closed claw
 }
 
+/*
+ * Performs a servo write on pin_number with the servo_value
+ * The value must be 0 to 180 (might change depending on servo)
+ */
 void servo_write(int pin_number, int servo_value){
-    /*
-     * Performs a servo write on pin_number with the servo_value
-     * The value must be 0 to 180 (might change depending on servo)
-     */
-     
+    
      if (pin_number == SERVO2_PIN)
      {
        SERVO2.write(servo_value);
-       delay(10);
-       
+       delay(10);  
      } 
      else if (pin_number == SERVO3_PIN) 
      {
@@ -58,6 +62,11 @@ void servo_write(int pin_number, int servo_value){
      else if (pin_number == SERVO4_PIN) 
      {
        SERVO4.write(servo_value);
+       delay(10);
+     }
+     else if (pin_number == SERVO5_PIN)
+     {
+       SERVO5.write(servo_value);
        delay(10);
      }
 
